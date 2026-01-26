@@ -1,0 +1,17 @@
+{# home/index.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Simple Modal Demo{% endblock %}
+
+{% block body %}
+    {% include './shared/components/_modal.html.twig' with {
+    'title': 'Welcome 67!',
+    'btnLabel': 'Click Me',
+    'btnClass': 'is-info',
+    'content': '<p>This is a custom Alpine + Bulma component!</p>'
+} %}
+
+    {# Session Counter #}
+    <div>You visited: {{ app.session.get('counter', 0) }}</div>
+    
+{% endblock %}

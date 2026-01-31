@@ -1,6 +1,20 @@
-{# templates/admin/dashboard.html.twig #}
-{% extends '@EasyAdmin/layout.html.twig' %}
+{% extends '@EasyAdmin/page/content.html.twig' %}
 
 {% block main %}
-    <h1>Welcome to the Admin Dashboard</h1>
-{% endblock main %}
+    <h1 class="title">Admin Dashboard</h1>
+
+    <div class="dashboard-widgets">
+        <div class="widget">
+            <h2 class="widget-title">Users</h2>
+            <p class="widget-content">Manage application users.</p>
+        </div>
+        <div class="widget">
+            <h2 class="widget-title">Reports</h2>
+            <p class="widget-content">View and generate reports.</p>
+        </div>
+        <div class="widget">
+            <h2 class="widget-title">Settings</h2>
+            <p class="widget-content">Configure application settings.</p>
+        </div>
+    </div>
+{% endblock %}

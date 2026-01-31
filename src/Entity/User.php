@@ -33,6 +33,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $password = null;
 
+    #[ORM\OneToOne(inversedBy: 'user', cascade: ['persist', 'remove'])]
+    private ?Patient $userType = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -112,5 +115,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function eraseCredentials(): void
     {
         // @deprecated, to be removed when upgrading to Symfony 8
+    }
+
+    public function getUserType(): ?Patient
+    {
+        return $this->userType;
+    }
+
+    public function setUserType(?Patient $userType): static
+    {
+        $this->userType = $userType;
+
+        return $this;
     }
 }

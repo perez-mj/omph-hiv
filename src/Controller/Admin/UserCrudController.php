@@ -60,6 +60,7 @@ class UserCrudController extends AbstractCrudController
 
         yield ArrayField::new('roles')
             ->setHelp('Available roles: ROLE_ADMIN, ROLE_USER, etc.');
+        yield TextField::new('userType');
     }
 
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void

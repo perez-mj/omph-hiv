@@ -41,13 +41,8 @@ class UserCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        // Remove the custom registration action since we'll use the default NEW action
-        // and modify the password handling in persistEntity/updateEntity
-
         return $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL);
-        // EDIT and DELETE actions are already included by default
-        // Don't change the button styles as requested
     }
 
     public function configureFields(string $pageName): iterable

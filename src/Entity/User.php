@@ -18,8 +18,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 180)]
+    #[ORM\Column(length: 180, unique: true)]
     private ?string $username = null;
+
+    #[ORM\Column(length: 255)]
+    private ?string $email = null;
 
     /**
      * @var list<string> The user roles
@@ -33,8 +36,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $password = null;
 
-    #[ORM\OneToOne(inversedBy: 'user', cascade: ['persist', 'remove'])]
-    private ?Patient $userType = null;
+    #[ORM\Column(length: 20)]
+    private ?string $userType = null; // 'STAFF' or 'PATIENT'
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Role $role = null; // For staff users only
+
+    #[ORM\OneToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Patient $patient = null; // For patient users only
+
+    #[ORM\Column]
+    private ?bool $isActive = true;
+
+    #[ORM\Column]
+    private ?\DateTimeImmutable $createdAt = null;
+
+    public function __construct()
+    {
+        $this->createdAt = new \DateTimeImmutable();
+    }
 
     public function getId(): ?int
     {
@@ -49,45 +71,51 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setUsername(string $username): static
     {
         $this->username = $username;
-
         return $this;
     }
 
-    /**
-     * A visual identifier that represents this user.
-     *
-     * @see UserInterface
-     */
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(string $email): static
+    {
+        $this->email = $email;
+        return $this;
+    }
+
     public function getUserIdentifier(): string
     {
         return (string) $this->username;
     }
 
-    /**
-     * @see UserInterface
-     */
     public function getRoles(): array
     {
         $roles = $this->roles;
-        // guarantee every user at least has ROLE_USER
+        
+        // Add user type as a role
+        if ($this->userType) {
+            $roles[] = 'ROLE_' . $this->userType;
+        }
+        
+        // Add role from Role entity if exists (for staff)
+        if ($this->role && $this->userType === 'STAFF') {
+            $roles[] = $this->role->getRoleName();
+        }
+        
+        // Guarantee every user at least has ROLE_USER
         $roles[] = 'ROLE_USER';
-
+        
         return array_unique($roles);
     }
 
-    /**
-     * @param list<string> $roles
-     */
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
-
         return $this;
     }
 
-    /**
-     * @see PasswordAuthenticatedUserInterface
-     */
     public function getPassword(): ?string
     {
         return $this->password;
@@ -96,36 +124,112 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPassword(string $password): static
     {
         $this->password = $password;
-
         return $this;
     }
 
-    /**
-     * Ensure the session doesn't contain actual password hashes by CRC32C-hashing them, as supported since Symfony 7.3.
-     */
-    public function __serialize(): array
-    {
-        $data = (array) $this;
-        $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
-
-        return $data;
-    }
-
-    #[\Deprecated]
-    public function eraseCredentials(): void
-    {
-        // @deprecated, to be removed when upgrading to Symfony 8
-    }
-
-    public function getUserType(): ?Patient
+    public function getUserType(): ?string
     {
         return $this->userType;
     }
 
-    public function setUserType(?Patient $userType): static
+    public function setUserType(string $userType): static
     {
+        if (!in_array($userType, ['STAFF', 'PATIENT'])) {
+            throw new \InvalidArgumentException('Invalid user type');
+        }
+        
         $this->userType = $userType;
-
+        
+        // Clear inappropriate associations
+        if ($userType === 'STAFF') {
+            $this->patient = null;
+        } elseif ($userType === 'PATIENT') {
+            $this->role = null;
+        }
+        
         return $this;
+    }
+
+    public function getRole(): ?Role
+    {
+        return $this->role;
+    }
+
+    public function setRole(?Role $role): static
+    {
+        if ($this->userType === 'PATIENT') {
+            throw new \LogicException('Patients cannot have staff roles');
+        }
+        
+        $this->role = $role;
+        return $this;
+    }
+
+    public function getPatient(): ?Patient
+    {
+        return $this->patient;
+    }
+
+    public function setPatient(?Patient $patient): static
+    {
+        if ($this->userType === 'STAFF') {
+            throw new \LogicException('Staff cannot be associated with patients');
+        }
+        
+        $this->patient = $patient;
+        
+        // Also set the patient's user reference
+        if ($patient) {
+            $patient->setUser($this);
+        }
+        
+        return $this;
+    }
+
+    public function isActive(): ?bool
+    {
+        return $this->isActive;
+    }
+
+    public function setIsActive(bool $isActive): static
+    {
+        $this->isActive = $isActive;
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    {
+        $this->createdAt = $createdAt;
+        return $this;
+    }
+
+    public function eraseCredentials(): void
+    {
+        // If you store any temporary, sensitive data on the user, clear it here
+    }
+
+    public function __serialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'username' => $this->username,
+            'password' => $this->password,
+            'roles' => $this->roles,
+            'userType' => $this->userType,
+        ];
+    }
+
+    public function __unserialize(array $data): void
+    {
+        $this->id = $data['id'];
+        $this->username = $data['username'];
+        $this->password = $data['password'];
+        $this->roles = $data['roles'];
+        $this->userType = $data['userType'];
     }
 }

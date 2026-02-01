@@ -15,7 +15,7 @@ class Patient
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: 'uuid')]
+    #[ORM\Column(type: 'uuid', unique: true)]
     private ?Uuid $patientCode = null;
 
     #[ORM\Column(length: 100)]
@@ -28,7 +28,7 @@ class Patient
     private ?string $sex = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
-    private ?\DateTime $birthDate = null;
+    private ?\DateTimeInterface $birthDate = null;
 
     #[ORM\Column(length: 13, nullable: true)]
     private ?string $contactNo = null;
@@ -39,8 +39,14 @@ class Patient
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
-    #[ORM\OneToOne(mappedBy: 'userType', cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(mappedBy: 'patient', cascade: ['persist', 'remove'])]
     private ?User $user = null;
+
+    public function __construct()
+    {
+        $this->patientCode = Uuid::v4();
+        $this->createdAt = new \DateTimeImmutable();
+    }
 
     public function getId(): ?int
     {
@@ -55,7 +61,6 @@ class Patient
     public function setPatientCode(Uuid $patientCode): static
     {
         $this->patientCode = $patientCode;
-
         return $this;
     }
 
@@ -67,7 +72,6 @@ class Patient
     public function setFirstName(string $firstName): static
     {
         $this->firstName = $firstName;
-
         return $this;
     }
 
@@ -79,8 +83,12 @@ class Patient
     public function setLastName(?string $lastName): static
     {
         $this->lastName = $lastName;
-
         return $this;
+    }
+
+    public function getFullName(): string
+    {
+        return trim($this->firstName . ' ' . ($this->lastName ?? ''));
     }
 
     public function getSex(): ?string
@@ -91,20 +99,29 @@ class Patient
     public function setSex(string $sex): static
     {
         $this->sex = $sex;
-
         return $this;
     }
 
-    public function getBirthDate(): ?\DateTime
+    public function getBirthDate(): ?\DateTimeInterface
     {
         return $this->birthDate;
     }
 
-    public function setBirthDate(?\DateTime $birthDate): static
+    public function setBirthDate(?\DateTimeInterface $birthDate): static
     {
         $this->birthDate = $birthDate;
-
         return $this;
+    }
+
+    public function getAge(): ?int
+    {
+        if (!$this->birthDate) {
+            return null;
+        }
+
+        $now = new \DateTime();
+        $interval = $now->diff($this->birthDate);
+        return $interval->y;
     }
 
     public function getContactNo(): ?string
@@ -115,7 +132,6 @@ class Patient
     public function setContactNo(?string $contactNo): static
     {
         $this->contactNo = $contactNo;
-
         return $this;
     }
 
@@ -127,7 +143,6 @@ class Patient
     public function setAddress(?string $address): static
     {
         $this->address = $address;
-
         return $this;
     }
 
@@ -139,7 +154,6 @@ class Patient
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
-
         return $this;
     }
 
@@ -150,18 +164,39 @@ class Patient
 
     public function setUser(?User $user): static
     {
-        // unset the owning side of the relation if necessary
         if ($user === null && $this->user !== null) {
-            $this->user->setUserType(null);
-        }
-
-        // set the owning side of the relation if necessary
-        if ($user !== null && $user->getUserType() !== $this) {
-            $user->setUserType($this);
+            $this->user->setPatient(null);
         }
 
         $this->user = $user;
 
+        if ($user !== null && $user->getPatient() !== $this) {
+            $user->setPatient($this);
+        }
+
+        return $this;
+    }
+
+    // Add this method to your Patient entity
+    public function __toString(): string
+    {
+        // Customize this based on what fields you have in Patient
+        // Example if you have a 'name' or 'firstName'/'lastName' field:
+        if ($this->getFirstName() && $this->getLastName()) {
+            return $this->getFirstName() . ' ' . $this->getLastName();
+        }
+
+        if ($this->getFullName()) {
+            return $this->getFullName();
+        }
+
+        // Fallback to ID or other identifier
+        return 'Patient #' . $this->getId() ?? 'New Patient';
+    }
+
+    public function generatePatientCode(): static
+    {
+        $this->patientCode = Uuid::v4();
         return $this;
     }
 }
